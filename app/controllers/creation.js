@@ -56,24 +56,35 @@ var userFields = [
 exports.find = async (ctx, next) => {
   var feed = ctx.query.feed
   var cid = ctx.query.cid
-  // var sortRequest = ctx.query.sortRequest
+  var sortRequest = ctx.query.sortRequest
+  var searchRequest = ctx.query.searchRequest
+
 
   var count = 5
+  var query = {}
 
-  var query = {
+ if(searchRequest) {
+   query = {'title' : searchRequest}
+ }
+ else {
+   query = {}
+ }
+
+
+
+  if(sortRequest && sortRequest === 'byCommentNumber') {
+    sortType = {
+      'commentTotal': -1
+    }
+  }
+  else {
+    sortType = {
+      'meta.createAt': -1
+    }
   }
 
-  var sortType = {
-    'meta.createAt': -1
-  }
 
-  // if(sortRequest === 'byCommentNumber') {
-  //   sortType = {
-  //     'commentTotal': -1
-  //   }
-  // }
-
-  if (cid) {
+  if (cid) {                     // 会搜索大于或者小于当前cid到creatino然后返回给客户端，如果客户端是用data.data.concat就会添加，不管内容会不会重
     if (feed === 'recent') {
       query._id = {'$gt': cid}  // mongodb的条件查询，大于，query._id 会直接添加到query里面去
     }
@@ -92,13 +103,39 @@ exports.find = async (ctx, next) => {
    .sort(sortType)
    .limit(count)
    .populate('author', userFields.join(' '))
-   //monogdb的 creations的表格内容里面的author只是一个 objectid，pupulate就是额外把author的字段扩展后发给前端，便于展现author的内容
-   //另外包括creations本身内容
-   //存到前端的dataSource里面，进而传到row里面
+
 
    var total = await Creation.count({})
-  //上面每一个查询都是异步的，等于是同步，第一个查询完，才会进行下一个查询； 下面的数组方式有问题，查询是整个数组里面的两个元素都查询完成后，再返回结果
 
+
+   ctx.body = {
+     success: true,
+     data: creation,
+     total: total
+   }
+}
+
+//  seatchRequest
+exports.search = async (ctx, next) => {
+  var feed = ctx.query.feed
+  var cid = ctx.query.cid
+  var searchRequest = ctx.query.searchRequest
+
+
+  var count = 5
+
+  var query = {'title' : {$regex:searchRequest,$options:"$i"}}  // 正则匹配，搜索包含searchRequest的，且不区分大小写
+
+
+  console.log('what is query for video')
+  console.log(query)
+  //下拉刷新的时候，打印的结果是{ _id: { '$gt': '5a6e944ce5def6352b4bcf86' } }
+
+
+  var creation  = await Creation
+   .find(query)
+   .populate('author', userFields.join(' '))
+   var total = await Creation.count(query)  //  这里一定要加入query，计算找到的总数。不如前端会因为total不同，会做上拉
 
    ctx.body = {
      success: true,

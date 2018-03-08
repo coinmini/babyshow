@@ -30,6 +30,7 @@ module.exports = function(){
 
   //find
   router.get('/creations', Creation.find)
+  router.get('/creations/search', Creation.search)
 
   //Comment
   router.get('/comments',  Comment.find)

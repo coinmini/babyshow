@@ -23,7 +23,7 @@ exports.signup = async (ctx, next) => {
       phoneNumber: xss(phoneNumber),
       verifyCode: verifyCode,
       nickname: 'little xx',
-      avatar: 'http://res.cloudinary.com/bobolin/image/upload/v1500583217/avatar/hxzghfolamp798sd1wb0.jpg'})
+      avatar: 'https://avatar.dappnode.com/s3.jpg'})
   } else {
     user.verifyCode = verifyCode
   }
