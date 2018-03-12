@@ -11,6 +11,23 @@ var config = require('../../config/config')
 
 var robot = require('../service/robot')
 
+/////
+var qiniu = require('qiniu')
+// const proc = require("process")
+var config = require('../../config/config')
+
+var accessKey = config.qiniu.AK
+var secretKey = config.qiniu.SK
+var mac = new qiniu.auth.digest.Mac(accessKey, secretKey);
+
+//以下是 qiniu.fetch用到的，从github来的https://github.com/qiniu/nodejs-sdk/blob/master/examples/rs_fetch.js
+var qiniu_config = new qiniu.conf.Config()
+//config.useHttpsDomain = true;
+//config.zone = qiniu.zone.Zone_z1;
+var bucketManager = new qiniu.rs.BucketManager(mac, qiniu_config)
+
+//下面是cloudinary
+
 
 exports.up = async (ctx, next) => {
   var body = ctx.request.body
@@ -135,6 +152,7 @@ exports.search = async (ctx, next) => {
   var creation  = await Creation
    .find(query)
    .populate('author', userFields.join(' '))
+
    var total = await Creation.count(query)  //  这里一定要加入query，计算找到的总数。不如前端会因为total不同，会做上拉
 
    ctx.body = {
@@ -185,129 +203,231 @@ exports.search = async (ctx, next) => {
 //    }
 // }
 
+
+//原合成方法
+// function asyncMedia(videoId, audioId){
+//
+//   if(!videoId) return
+//
+//   var query = {
+//     _id: audioId
+//   }
+//
+//   if(!audioId) {   //这是针对 exports.video 里面的 asyncMedia方法，里面没有audioId
+//     query = {
+//       video: videoId
+//     }
+//   }
+//
+// //.all 是要求all里面的异步操作都完成后，才能返回
+// //videoId 是 video._id, audioId是audio._id
+//   Promise.all([   //  先查询到视频和音频都有，再将两个拼接，因为下面很多函数是异步，会导致视频还没上传完毕，就开始拼接
+//     Video.findOne({
+//       _id: videoId
+//     }),
+//     Audio.findOne(query)
+//   ])
+//   .then((data)=>{
+//     var video = data[0]   //是把两个models都拿出来了
+//     var audio = data[1]
+//     console.log('check data')
+//       if(!video || !video.public_id || !audio || !audio.public_id){
+//         return
+//       }
+//
+//       console.log('start combine')
+//
+//       var video_public_id = video.public_id
+//       var audio_public_id = audio.public_id.replace(/\//g, ':')
+//       //多层文件夹用冒号标示层级关系,  正则替换，g是全局， 本来只是替换‘／’
+//       //audio/wlotzxyqv4ud50cri50i  变成audio:wlotzxyqv4ud50cri50i
+//       var videoName = video_public_id.replace(/\//g, '_') + '.mp4'
+//       var videoURL = 'http://res.cloudinary.com/bobolin/video/upload/e_volume:-100/e_volume:400,l_video:' + audio_public_id + '/' +
+//       video_public_id + '.mp4'
+//       //拼接到结果如下
+//       // overlay原始格式: /upload/l_video:public_id1/public_id2  将public_id1 叠加到public_id2上面
+//       //http://res.cloudinary.com/bobolin/video/upload/e_volume:-100/e_volume:400,l_video:audio:wlotzxyqv4ud50cri50i/video/el6ptypxev8opwqxw3ru.mp4
+//       //    /e_volume:400,l_video:audio:wlotzxyqv4ud50cri50i,  e_volume是控制音量，l_video是add overlay,格式：l_video:public_id
+//       // /e_volume:-100 是针对 video/el6ptypxev8opwqxw3ru.mp4
+//
+//
+//       var thumbName = video_public_id.replace(/\//g, '_') + '.jpg'
+//       var thumbURL = 'http://res.cloudinary.com/bobolin/video/upload/' + video_public_id + '.jpg'
+//
+//
+//         console.log('async video to qiniu')
+//
+//       robot  // 上面地址拼接的结果就是将视频和音频合并好了。然后保存到七牛
+//           .saveToQiniu(videoURL, videoName)
+//           .catch(function(err){
+//             console.log(err)
+//           })
+//           .then(function(response){
+//             if(response && response.key) {
+//
+//               console.log('this is saveToQiniu s response of video')
+//
+//               console.log(response)
+//               audio.qiniu_video = response.key    // 通过地址拼接，处理音频和视频的合并，然后上传到qiniu, 这里到response.key就是合并后到结果了
+//               audio.save().then(function(_audio){
+//                 //将合并后到结果save到 database里面到audio表格里面，保证视频上传qiniu完毕后，才去进行creation
+//                 //_audio是save之后返回的结果，内容是audio collection里面的一条
+//                 Creation.findOne({
+//                   video: video._id,
+//                   audio: audio._id
+//                 })
+//                 .then(function(_creation){  // _creation是findone返回的找到的结果
+//                   if(_creation){
+//                     if(!_creation.qiniu_video){
+//                       _creation.qiniu_video = _audio.qiniu_video  //添加这个合并好的视频到creation里面
+//                       _creation.save()
+//                     }
+//                   }
+//                 })
+//
+//               })
+//               console.log('async video complete')
+//             }
+//           })
+//
+//
+//         console.log('async thumb to qiniu')
+//
+//     robot
+//           .saveToQiniu(thumbURL, thumbName)
+//           .catch(function(err){
+//             console.log(err)
+//           })
+//           .then(function(response){
+//             if(response && response.key) {
+//               audio.qiniu_thumb = response.key
+//               audio.save().then(function(_audio){
+//
+//                 Creation.findOne({
+//                   video: video._id,
+//                   audio: audio._id
+//                 })
+//                 .then(function(_creation){
+//                   if(_creation){
+//                     if(!_creation.qiniu_video){
+//                       _creation.qiniu_thumb = _audio.qiniu_thumb
+//                       _creation.save()
+//                     }
+//                   }
+//                 })
+//               })
+//               console.log('async thumb complete')
+//             }
+//           })
+//
+//   })
+//
+//  return 'async all completeeeeeeee'
+// }
+
+
+// 改造
 function asyncMedia(videoId, audioId){
 
+  return new Promise((resolve,reject)=>{
+    if(!videoId) return
 
-  if(!videoId) return
-
-  var query = {
-    _id: audioId
-  }
-
-  if(!audioId) {   //这是针对 exports.video 里面的 asyncMedia方法，里面没有audioId
-    query = {
-      video: videoId
+    var query = {
+      _id: audioId
     }
-  }
 
-//.all 是要求all里面的异步操作都完成后，才能返回
-//videoId 是 video._id, audioId是audio._id
-  Promise.all([   //  先查询到视频和音频都有，再将两个拼接，因为下面很多函数是异步，会导致视频还没上传完毕，就开始拼接
-    Video.findOne({
-      _id: videoId
-    }),
-    Audio.findOne(query)
-  ])
-  .then((data)=>{
-    var video = data[0]   //是把两个models都拿出来了
-    var audio = data[1]
-    console.log('check data')
-      if(!video || !video.public_id || !audio || !audio.public_id){
-        return
+    if(!audioId) {   //这是针对 exports.video 里面的 asyncMedia方法，里面没有audioId
+      query = {
+        video: videoId
       }
+    }
 
-      console.log('start combine')
+  //.all 是要求all里面的异步操作都完成后，才能返回
+  //videoId 是 video._id, audioId是audio._id
+    Promise.all([   //  先查询到视频和音频都有，再将两个拼接，因为下面很多函数是异步，会导致视频还没上传完毕，就开始拼接
+      Video.findOne({
+        _id: videoId
+      }),
+      Audio.findOne(query)
+    ])
+    .then( async (data)=>{
+      var video = data[0]   //是把两个models都拿出来了
+      var audio = data[1]
+      console.log('check data')
+        if(!video || !video.public_id || !audio || !audio.public_id){
+          return
+        }
 
-      var video_public_id = video.public_id
-      var audio_public_id = audio.public_id.replace(/\//g, ':')
-      //多层文件夹用冒号标示层级关系,  正则替换，g是全局， 本来只是替换‘／’
-      //audio/wlotzxyqv4ud50cri50i  变成audio:wlotzxyqv4ud50cri50i
-      var videoName = video_public_id.replace(/\//g, '_') + '.mp4'
-      var videoURL = 'http://res.cloudinary.com/bobolin/video/upload/e_volume:-100/e_volume:400,l_video:' + audio_public_id + '/' +
-      video_public_id + '.mp4'
-      //拼接到结果如下
-      // overlay原始格式: /upload/l_video:public_id1/public_id2  将public_id1 叠加到public_id2上面
-      //http://res.cloudinary.com/bobolin/video/upload/e_volume:-100/e_volume:400,l_video:audio:wlotzxyqv4ud50cri50i/video/el6ptypxev8opwqxw3ru.mp4
-      //    /e_volume:400,l_video:audio:wlotzxyqv4ud50cri50i,  e_volume是控制音量，l_video是add overlay,格式：l_video:public_id
-      // /e_volume:-100 是针对 video/el6ptypxev8opwqxw3ru.mp4
+        console.log('start combine')
+
+        var video_public_id = video.public_id
+        var audio_public_id = audio.public_id.replace(/\//g, ':')
+        //多层文件夹用冒号标示层级关系,  正则替换，g是全局， 本来只是替换‘／’
+        //audio/wlotzxyqv4ud50cri50i  变成audio:wlotzxyqv4ud50cri50i
+        var videoName = video_public_id.replace(/\//g, '_') + '.mp4'
+        var videoURL = 'http://res.cloudinary.com/bobolin/video/upload/e_volume:-100/e_volume:400,l_video:' + audio_public_id + '/' +
+        video_public_id + '.mp4'
+        //拼接到结果如下
+        // overlay原始格式: /upload/l_video:public_id1/public_id2  将public_id1 叠加到public_id2上面
+        //http://res.cloudinary.com/bobolin/video/upload/e_volume:-100/e_volume:400,l_video:audio:wlotzxyqv4ud50cri50i/video/el6ptypxev8opwqxw3ru.mp4
+        //    /e_volume:400,l_video:audio:wlotzxyqv4ud50cri50i,  e_volume是控制音量，l_video是add overlay,格式：l_video:public_id
+        // /e_volume:-100 是针对 video/el6ptypxev8opwqxw3ru.mp4
 
 
-      var thumbName = video_public_id.replace(/\//g, '_') + '.jpg'
-      var thumbURL = 'http://res.cloudinary.com/bobolin/video/upload/' + video_public_id + '.jpg'
+        var thumbName = video_public_id.replace(/\//g, '_') + '.jpg'
+        var thumbURL = 'http://res.cloudinary.com/bobolin/video/upload/' + video_public_id + '.jpg'
 
 
-        console.log('async video to qiniu')
+          console.log('async video to qiniu')
 
-      robot  // 上面地址拼接的结果就是将视频和音频合并好了。然后保存到七牛
-          .saveToQiniu(videoURL, videoName)
-          .catch(function(err){
-            console.log(err)
-          })
-          .then(function(response){
-            if(response && response.key) {
-
-              console.log('this is saveToQiniu s response of video')
-
-              console.log(response)
-              audio.qiniu_video = response.key    // 通过地址拼接，处理音频和视频的合并，然后上传到qiniu, 这里到response.key就是合并后到结果了
-              audio.save().then(function(_audio){
-                //将合并后到结果save到 database里面到audio表格里面，保证视频上传qiniu完毕后，才去进行creation
-                //_audio是save之后返回的结果，内容是audio collection里面的一条
-                Creation.findOne({
-                  video: video._id,
-                  audio: audio._id
-                })
-                .then(function(_creation){  // _creation是findone返回的找到的结果
-                  if(_creation){
-                    if(!_creation.qiniu_video){
-                      _creation.qiniu_video = _audio.qiniu_video  //添加这个合并好的视频到creation里面
-                      _creation.save()
+        let qiniu_video_response = await robot.saveToQiniu(videoURL, videoName)
+                audio.qiniu_video = qiniu_video_response.key    // 通过地址拼接，处理音频和视频的合并，然后上传到qiniu, 这里到response.key就是合并后到结果了
+                audio.save().then(function(_audio){
+                  //将合并后到结果save到 database里面到audio表格里面，保证视频上传qiniu完毕后，才去进行creation
+                  //_audio是save之后返回的结果，内容是audio collection里面的一条
+                  Creation.findOne({
+                    video: video._id,
+                    audio: audio._id
+                  })
+                  .then(function(_creation){  // _creation是findone返回的找到的结果
+                    if(_creation){
+                      if(!_creation.qiniu_video){
+                        _creation.qiniu_video = _audio.qiniu_video  //添加这个合并好的视频到creation里面
+                        _creation.save()
+                      }
                     }
-                  }
+                  })
                 })
-
-              })
-              console.log('async video complete')
-            }
-          })
+                console.log('async video complete')
 
 
-        console.log('async thumb to qiniu')
+                console.log('async thumb to qiniu')
+                let qiniu_thumbURL_response = await robot.saveToQiniu(thumbURL, thumbName)
 
-      robot
-          .saveToQiniu(thumbURL, thumbName)
-          .catch(function(err){
-            console.log(err)
-          })
-          .then(function(response){
-            if(response && response.key) {
-              audio.qiniu_thumb = response.key
-              audio.save().then(function(_audio){
+                audio.qiniu_thumb = qiniu_thumbURL_response.key
+                audio.save().then(function(_audio){
 
-                Creation.findOne({
-                  video: video._id,
-                  audio: audio._id
-                })
-                .then(function(_creation){
-                  if(_creation){
-                    if(!_creation.qiniu_video){
-                      _creation.qiniu_thumb = _audio.qiniu_thumb
-                      _creation.save()
+                  Creation.findOne({
+                    video: video._id,
+                    audio: audio._id
+                  })
+                  .then(function(_creation){
+                    if(_creation){
+                      if(!_creation.qiniu_video){
+                        _creation.qiniu_thumb = _audio.qiniu_thumb
+                        _creation.save()
+                      }
                     }
-                  }
+                  })
                 })
-              })
-              console.log('async thumb complete')
-            }
-          })
-
+                console.log('async thumb complete')
+              resolve('aynce all completeeeeeeee')
+    })
   })
-
-
 }
 
 
-//需要改成阿里云
+
 exports.video = async (ctx, next) =>{  //
 //video上传到qiniu，将返回的 response(hash,key,persistenID) 再上传到mongoDB的 video目录,
 //node服务器端同步到cloudinary,再在node服务器端保存到mongodb 的video表格
@@ -333,12 +453,14 @@ exports.video = async (ctx, next) =>{  //
 //如果没有，就new一个
   if(!video) {
     video = new Video({
-      // author: user._id,
+      author: user._id,
       qiniu_key: videoData.key,   // 上传视频到七牛后返回得到的key
       persistentId: videoData.persistentId   // 这个是七牛返回的结果
     })
 
     video = await video.save()  //保存到mongodb里面
+    console.log('i am new video in the mongodb')
+    console.log(video)
   }
 
 //在服务器端拿到qiniu视频的地址，就得去mongodb里面去拿，如video.qiniu_key; 所以 这就是mongodb存在的意义，存储表单信息，结构化这些信息。
@@ -346,10 +468,11 @@ exports.video = async (ctx, next) =>{  //
 //拿到在qiniu空间的视频地址,上传到cloudinary，通过cloudinary处理这个视频，返回的结果更新 mongodb里面的那段视频
   var url = config.qiniu.video + video.qiniu_key  // 七牛空间的视频
 
-//这里可以上传到aliyun来处理
   robot
     .uploadToCloudinary(url)    // 把七牛video的链接直接上传到cloudinary
     .then((data)=>{
+      console.log('i am video response from cloudinary ')
+      console.log(data)
         if(data && data.public_id){
           video.public_id = data.public_id
 // 返回的内容： "secure_url" : "https://res.cloudinary.com/bobolin/video/upload/v1519709147/video/vxstl2ctb3nqmzku2bex.mov",
@@ -359,17 +482,23 @@ exports.video = async (ctx, next) =>{  //
 // 等于是一个promise，video.save()之后返回一个结果data，then(_video)相当于then(data)
 // 等价于在执行 video = video.save()之后， 再执行asyncMedia(video._id)； 因为video.save()是一个异步，避免还没保存好就执行后面的程序
 
+  console.log('successfully async video from qiniu to cloudinary ')
+  video.save()  //保存到mongodb里面, promise里面不能放await，会不识别
 
-          video.save().then((_video)=>{ //mongodb里面多了 一个public_id
-// 这里的asyncMedia有什么作用？
-            asyncMedia(_video._id)   //	"_id" : ObjectId("5a94ebd6220aab284ad7589e"), video collection里面的内容
-          })
+//           .then((_video)=>{ //mongodb里面多了 一个public_id    _video 是刚刚save的一条video的所以内容
+//            console.log('see whats in the _video')
+//            console.log(_video)
+//             asyncMedia(_video._id)   //	"_id" : ObjectId("5a94ebd6220aab284ad7589e"), video collection里面的内容
+//           })
         }
+      })
+      .catch((err)=>{
+        console.error('error at video uploadToCloudinary:'+error)
       })
 
   ctx.body ={
     success: true,
-    data: video._id  // 返回到客户端，用来和audio匹配
+    data: video._id  // 返回到客户端，用来和audio匹配， 因为返回的是 video._id, 上面的robot执行异步的结果里面没有video._id,所以没关系
   }
 }
 
@@ -412,11 +541,13 @@ exports.audio = async (ctx, next) =>{
 
     audio = new Audio(_audio) //添加audio collection
 
-    audio = await audio.save()   // 如果不写await 就是promise了
+    audio = await audio.save()
   }
 
-  //这是异步操作
-  asyncMedia(video._id, audio._id)  //音频保存到databse之后，asyncMedia方法，会合并音频和视频，并且保存到qiniu
+  //没有await是异步操作， 会出现，下面的ctx.body 先返回了
+  var asyncJson = await asyncMedia(video._id, audio._id)  //音频保存到databse之后，asyncMedia方法，会合并音频和视频，并且保存到qiniu
+  console.log(asyncJson)
+  console.log('this is after await asyncMedia')
 
   ctx.body ={
     success: true,
@@ -424,7 +555,7 @@ exports.audio = async (ctx, next) =>{
   }
 }
 
-exports.save = async (ctx, next) =>{   // 将视频和音频合并后，保存到databse
+exports.save = async (ctx, next) =>{   // 将视频和音频合并后，保存到databse, 对应client端的publis submit
   var body = ctx.request.body
   var audioId = body.audioId
   var videoId = body.videoId
@@ -487,16 +618,16 @@ exports.save = async (ctx, next) =>{   // 将视频和音频合并后，保存�
 //添加qiniu_video给creationData， 并且把database的audio表格里面已经合并好的结果赋值给 creation 表格里面的qiniu_video
     if(audio.qiniu_video) {
       creationData.qiniu_video = audio.qiniu_video
-      creationData.finish += 40
+      creationData.finish += 30
     }
 
     console.log('this is creation data from save')
     console.log(creationData)
+
     creation = new Creation(creationData)
 
     creation = await creation.save()
   }
-
 
   ctx.body ={
     success: true,
@@ -513,7 +644,8 @@ exports.save = async (ctx, next) =>{   // 将视频和音频合并后，保存�
         breed: user.breed,
         _id: user._id
       }
-
     }
   }
+
+
 }
