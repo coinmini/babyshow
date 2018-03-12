@@ -22,8 +22,8 @@ exports.signup = async (ctx, next) => {
       accessToken: accessToken,
       phoneNumber: xss(phoneNumber),
       verifyCode: verifyCode,
-      nickname: 'little xx',
-      avatar: 'https://avatar.dappnode.com/s3.jpg'})
+      nickname: 'FitsPie',
+      avatar: 'https://avatar.dappnode.com/image/jpg/avatar.JPG'})
   } else {
     user.verifyCode = verifyCode
   }
@@ -59,6 +59,26 @@ exports.verify = async (ctx, next) => {
   var verifyCode = ctx.request.body.verifyCode
   var phoneNumber = ctx.request.body.phoneNumber
 
+
+// 用于demo登陆
+  if(verifyCode === '20150630' && phoneNumber === '20150630') {
+    ctx.body = {
+      success: true,
+      data: {
+        nickname: 'FitsPie',
+        accessToken: 'accessToken',
+        avatar: 'https://avatar.dappnode.com/image/jpg/avatar.JPG',
+        _id: '_id',
+        gender: 'male',
+        nation: 'earth',
+        age: '28'
+      }
+    }
+    return  // 必须加这个return
+  }
+
+
+
   if (!verifyCode || !phoneNumber) {
     ctx.body = {
       success: false,
@@ -82,7 +102,7 @@ exports.verify = async (ctx, next) => {
         avatar: user.avatar,
         _id: user._id,
         gender: user.gender,
-        breed: user.breed,
+        nation: user.nation,
         age: user.age
       }
     }
@@ -110,7 +130,7 @@ exports.update = async (ctx, next) => {
   //   return next
   // }
 
-  var fields = 'avatar,age,nickname,gender,breed'.split(',')  //注意不要加空格,因为split的只是 ， 这里到avatar就是本地上传来更新的
+  var fields = 'avatar,age,nickname,gender,nation'.split(',')  //注意不要加空格,因为split的只是 ， 这里到avatar就是本地上传来更新的
 // console.log(fields) 打印出来 ['age', 'nickname', 'gender', 'breed']
 // console.log(fields[0])  split 之后就变成了数组 打印出来是 age
   fields.forEach(function(field) {
@@ -129,7 +149,7 @@ exports.update = async (ctx, next) => {
       accessToken: user.accessToken,
       avatar: user.avatar,
       age: user.age,
-      breed: user.breed,
+      nation: user.nation,
       gender: user.gender,
       _id: user._id
     }
