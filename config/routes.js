@@ -39,5 +39,6 @@ module.exports = function(){
   //votes
   router.post('/up', App.hasBody, App.hasToken, Creation.up)
 
+  router.get('/',  App.pingNetwork) // pingNetwork测试，看看网络通不通
   return router
 }

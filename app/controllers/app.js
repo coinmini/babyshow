@@ -4,6 +4,11 @@ var mongoose = require('mongoose')
 var User = mongoose.model('User')
 var robot = require('../service/robot')
 
+exports.pingNetwork = ctx =>{
+  ctx.body = {
+    success: true
+  }
+}
 
 exports.signature = ctx =>{   // 从客户端上传的body有 type，cloud，accesstoken
 
