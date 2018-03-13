@@ -16,7 +16,7 @@ var UserSchema = new mongoose.Schema({
   accessToken: String,
   nickname: String,
   gender: String,
-  breed: String,
+  nation: String,
   age: String,
   avatar: String,
   meta: {
