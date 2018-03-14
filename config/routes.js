@@ -43,6 +43,7 @@ var Comment = require('../app/controllers/comment')
   router.get('/api',  App.pingNetwork)
 
   router.get('/FitsPie/PrivacyPolicy', App.PrivacyPolicy)
+  router.get('/FitsPie/support', App.support)
 
 
 module.exports = router

@@ -7,15 +7,21 @@ var robot = require('../service/robot')
 const fs = require('fs')
 
 
+exports.pingNetwork = ctx =>{
+  ctx.body = {
+    success: true
+  }
+}
+
+
 exports.PrivacyPolicy = ctx => {
   ctx.type = 'html'  // 必须写出来，否则会直接下载
   ctx.body = fs.createReadStream('./static/PrivacyPolicy.html')  // createReadStream目录必须是绝对目录
 }
 
-exports.pingNetwork = ctx =>{
-  ctx.body = {
-    success: true
-  }
+exports.support = ctx => {
+  ctx.type = 'html'  // 必须写出来，否则会直接下载
+  ctx.body = fs.createReadStream('./static/support.html')  // createReadStream目录必须是绝对目录
 }
 
 exports.signature = ctx =>{   // 从客户端上传的body有 type，cloud，accesstoken
