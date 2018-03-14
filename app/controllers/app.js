@@ -1,8 +1,16 @@
 'user strict'
 
+
 var mongoose = require('mongoose')
 var User = mongoose.model('User')
 var robot = require('../service/robot')
+const fs = require('fs')
+
+
+exports.PrivacyPolicy = ctx => {
+  ctx.type = 'html'  // 必须写出来，否则会直接下载
+  ctx.body = fs.createReadStream('./static/PrivacyPolicy.html')  // createReadStream目录必须是绝对目录
+}
 
 exports.pingNetwork = ctx =>{
   ctx.body = {

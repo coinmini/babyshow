@@ -37,7 +37,7 @@
 var fs = require('fs')
 var path = require('path')
 var mongoose = require('mongoose')
-var db = 'mongodb://localhost/babyshow'   // 这里是数据库名
+var db = 'mongodb://localhost/FitsPie'   // 这里是数据库名
 
 mongoose.Promise = require('bluebird')  // 给mongoose设置promise，用的是bluebird里面的。因为mongoose官方不建议用mongoose自带的promise
 mongoose.connect(db)
@@ -81,7 +81,7 @@ const logger = require('koa-logger')
 const session = require('koa-session')
 const bodyParser = require('koa-bodyparser')
 const app = new Koa()
-var router = require('./config/routes')()
+var router_api = require('./config/routes')
 
 
 app.keys = ['imooc']
@@ -104,10 +104,25 @@ app.use(bodyParser())
 // }
 // )
 
+//每一个app.use()处理一个http请求，比如app.use('/videos',get), app.use('/audio',post)等等api。
+
+// app.use( async ctx=> {
+//   if (ctx.request.path === '/PrivacyPolicy') {
+//       ctx.response.type = 'html'
+//       ctx.body = fs.createReadStream('./PrivacyPolicy.html')
+//  }
+// })
+
+
+  // router.get('/PrivacyPolicy', ctx =>{
+  //   ctx.response.type = 'html'
+  //   ctx.body = fs.createReadStream('./PrivacyPolicy.html')
+  // })
 
 app
-  .use(router.routes())
-  .use(router.allowedMethods())
+  .use(router_api.routes())
+  .use(router_api.allowedMethods())
+
 
 app.listen(3006)
 console.log('listening:3000')
