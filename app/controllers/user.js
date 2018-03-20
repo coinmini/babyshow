@@ -6,6 +6,9 @@ var User = mongoose.model('User')  // app.js里面已经通过require，初始�
 var uuid = require('uuid')          // 如果没有在app.js里面初始化，也可以直接在这里require('../models/user')进行初始化
 var sms = require('../service/sms')
 
+
+// 先获得code，node成的，跟螺丝帽没关系.
+//将这个code 和 phoneNumber一起发给螺丝帽； 螺丝帽会发送给这个phoneNumber code
 exports.signup = async (ctx, next) => {
   var phoneNumber = ctx.request.body.phoneNumber
   // var phoneNumber = ctx.query.phoneNumber   这两个是等价的
